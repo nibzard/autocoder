@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """
-Autocoder - Autonomous coding tool using Claude Code SDK
+Autocoder - Autonomous coding tool using Claude Code Python SDK
 """
 
 import asyncio
 import sys
 import os
+import shutil
 from pathlib import Path
 from datetime import datetime
 
 try:
-    from claude_code_sdk import ClaudeCodeClient
+    from claude_code_sdk import ClaudeSDKClient, ClaudeCodeOptions, AssistantMessage, TextBlock, ResultMessage
 except ImportError:
-    print("❌ Claude Code SDK not found. Please install it:")
+    print("❌ Claude Code Python SDK not found. Please install it:")
     print("   pip install claude-code-sdk")
     sys.exit(1)
 
@@ -242,74 +243,114 @@ Remember: Good commits tell the story of the project.
     
     async def run_cycle(self):
         """Run one complete work cycle."""
-        print(f"\\n{'='*60}")
+        print(f"\n{'='*60}")
         print(f"🔄 Starting Work Cycle")
         print(f"📁 Project: {self.project_dir}")
         print(f"🕐 Time: {datetime.now():%H:%M:%S}")
         print('='*60)
         
         try:
-            # Initialize Claude Code client
-            client = ClaudeCodeClient(cwd=str(self.project_dir))
-            
-            # Step 1: Todo agent picks next task
-            print("\\n📋 Step 1: Checking todo list...")
-            response = await client.query(
-                "Use todo-agent subagent to review the status of todo.md, pick the next uncompleted task with highest priority, and mark it as [~] in progress."
+            # Configure options for Claude Code SDK
+            options = ClaudeCodeOptions(
+                cwd=str(self.project_dir),
+                allowed_tools=["Task", "Read", "Write", "Edit", "MultiEdit", "Bash", "Glob", "Grep"],
+                permission_mode="acceptEdits"
             )
             
-            # Extract task description from response
-            task_description = None
-            if "P0" in response or "P1" in response or "P2" in response or "P3" in response:
-                lines = response.split('\\n')
-                for line in lines:
-                    if '**P' in line or 'Task:' in line:
-                        task_description = line.strip()
-                        print(f"  ✅ Selected: {task_description[:60]}...")
+            # Use ClaudeSDKClient for conversation continuity
+            async with ClaudeSDKClient(options=options) as client:
+                # Step 1: Todo agent picks next task
+                print("\n📋 Step 1: Checking todo list...")
+                await client.query(
+                    "Use todo-agent subagent to review the status of todo.md, pick the next uncompleted task with highest priority, and mark it as [~] in progress."
+                )
+                
+                # Process response and extract task description
+                task_description = None
+                async for message in client.receive_response():
+                    if isinstance(message, AssistantMessage):
+                        for block in message.content:
+                            if isinstance(block, TextBlock):
+                                text = block.text
+                                if "P0" in text or "P1" in text or "P2" in text or "P3" in text:
+                                    lines = text.split('\n')
+                                    for line in lines:
+                                        if '**P' in line or 'Task:' in line:
+                                            task_description = line.strip()
+                                            print(f"  ✅ Selected: {task_description[:60]}...")
+                                            break
+                                    if task_description:
+                                        break
+                
+                if not task_description:
+                    print("  ℹ️  No tasks found or all completed!")
+                    return False
+                
+                # Step 2: Implement the task
+                print("\n💻 Step 2: Implementing task...")
+                await client.query(
+                    f"Implement this task: {task_description}. Write clean code, test it, and ensure it works correctly."
+                )
+                
+                # Wait for implementation to complete
+                async for message in client.receive_response():
+                    if isinstance(message, ResultMessage):
+                        if message.is_error:
+                            print(f"  ❌ Implementation failed: {message.result}")
+                            return False
                         break
-            
-            if not task_description:
-                print("  ℹ️  No tasks found or all completed!")
-                return False
-            
-            # Step 2: Developer implements the task
-            print("\\n💻 Step 2: Implementing task...")
-            await client.query(
-                f"Implement this task: {task_description}. Write clean code, test it, and ensure it works correctly."
-            )
-            print(f"  ✅ Implementation complete")
-            
-            # Step 3: Git agent commits changes
-            print("\\n📦 Step 3: Committing changes...")
-            await client.query(
-                f"Use git-agent subagent to commit all changes made for this task: {task_description}. Use appropriate conventional commit format."
-            )
-            print(f"  ✅ Changes committed")
-            
-            # Step 4: Todo agent updates task status
-            print("\\n✏️  Step 4: Updating todo status...")
-            await client.query(
-                f"Use todo-agent subagent to mark this task as completed [x]: {task_description}. Add a completion timestamp if appropriate."
-            )
-            print(f"  ✅ Todo updated - task marked complete")
-            
-            print(f"\\n🎉 Work cycle completed successfully!")
-            return True
-            
+                
+                print(f"  ✅ Implementation complete")
+                
+                # Step 3: Git agent commits changes
+                print("\n📦 Step 3: Committing changes...")
+                await client.query(
+                    f"Use git-agent subagent to commit all changes made for this task: {task_description}. Use appropriate conventional commit format."
+                )
+                
+                # Wait for commit to complete
+                async for message in client.receive_response():
+                    if isinstance(message, ResultMessage):
+                        if message.is_error:
+                            print(f"  ❌ Commit failed: {message.result}")
+                            return False
+                        break
+                
+                print(f"  ✅ Changes committed")
+                
+                # Step 4: Todo agent updates task status
+                print("\n✏️  Step 4: Updating todo status...")
+                await client.query(
+                    f"Use todo-agent subagent to mark this task as completed [x]: {task_description}. Add a completion timestamp if appropriate."
+                )
+                
+                # Wait for todo update to complete
+                async for message in client.receive_response():
+                    if isinstance(message, ResultMessage):
+                        if message.is_error:
+                            print(f"  ❌ Todo update failed: {message.result}")
+                            return False
+                        break
+                
+                print(f"  ✅ Todo updated - task marked complete")
+                
+                print(f"\n🎉 Work cycle completed successfully!")
+                return True
+                
         except Exception as e:
-            print(f"\\n❌ Cycle failed: {e}")
+            print(f"\n❌ Cycle failed: {e}")
             return False
     
     async def auto_run(self, max_cycles=10):
         """Run autonomous cycles until no tasks remain or max reached."""
-        print(f"\\n🚀 Starting Autonomous Coding Session")
+        print(f"\n🚀 Starting Autonomous Coding Session")
         print(f"   Max cycles: {max_cycles}")
         print(f"   Project: {self.project_dir}")
         
         completed_cycles = 0
         
         for cycle in range(1, max_cycles + 1):
-            print(f"\\n{'='*60}")
+            print(f"\n{'='*60}")
             print(f"🔁 Cycle {cycle}/{max_cycles}")
             print('='*60)
             
@@ -320,14 +361,14 @@ Remember: Good commits tell the story of the project.
                 
                 # Pause before next cycle
                 if cycle < max_cycles:
-                    print("\\n⏸  Pausing before next cycle...")
+                    print("\n⏸  Pausing before next cycle...")
                     await asyncio.sleep(3)
             else:
-                print("\\n📊 No more tasks or cycle failed")
+                print("\n📊 No more tasks or cycle failed")
                 break
         
         # Final summary
-        print(f"\\n{'='*60}")
+        print(f"\n{'='*60}")
         print(f"📈 Session Summary")
         print(f"   Completed cycles: {completed_cycles}")
         print(f"   Project: {self.project_dir}")

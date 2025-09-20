@@ -77,7 +77,7 @@ Priority levels: **P0** (Critical) > **P1** (High) > **P2** (Medium) > **P3** (L
 ## Requirements
 
 - Python 3.8+
-- Claude Code SDK
+- Claude Code Python SDK (`pip install claude-code-sdk`)
 - Git repository (initialized automatically if needed)
 
 ## Example Workflow
