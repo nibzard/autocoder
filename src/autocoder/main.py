@@ -265,31 +265,34 @@ Remember: Good commits tell the story of the project.
                     "Use todo-agent subagent to review the status of todo.md, pick the next uncompleted task with highest priority, and mark it as [~] in progress."
                 )
                 
-                # Process response and extract task description
-                task_description = None
+                # Process response to see if a task was selected
+                task_selected = False
                 async for message in client.receive_response():
                     if isinstance(message, AssistantMessage):
                         for block in message.content:
                             if isinstance(block, TextBlock):
                                 text = block.text
-                                if "P0" in text or "P1" in text or "P2" in text or "P3" in text:
+                                # Look for the agent's clear communication about task selection
+                                if "SELECTED TASK:" in text or "selected task" in text.lower():
+                                    task_selected = True
+                                    # Extract just the task description for display
                                     lines = text.split('\n')
                                     for line in lines:
-                                        if '**P' in line or 'Task:' in line:
-                                            task_description = line.strip()
-                                            print(f"  ✅ Selected: {task_description[:60]}...")
+                                        if "SELECTED TASK:" in line:
+                                            task_desc = line.replace("SELECTED TASK:", "").strip()
+                                            print(f"  ✅ {task_desc[:100]}...")
                                             break
-                                    if task_description:
-                                        break
+                                elif "no tasks" in text.lower() or "completed" in text.lower():
+                                    print(f"  ℹ️  {text.strip()}")
                 
-                if not task_description:
+                if not task_selected:
                     print("  ℹ️  No tasks found or all completed!")
                     return False
                 
                 # Step 2: Implement the task
                 print("\n💻 Step 2: Implementing task...")
                 await client.query(
-                    f"Implement this task: {task_description}. Write clean code, test it, and ensure it works correctly."
+                    "Implement the task that was just selected from todo.md. Write clean code, test it, and ensure it works correctly."
                 )
                 
                 # Wait for implementation to complete
@@ -305,7 +308,7 @@ Remember: Good commits tell the story of the project.
                 # Step 3: Git agent commits changes
                 print("\n📦 Step 3: Committing changes...")
                 await client.query(
-                    f"Use git-agent subagent to commit all changes made for this task: {task_description}. Use appropriate conventional commit format."
+                    "Use git-agent subagent to commit all changes made for the implemented task. Use appropriate conventional commit format."
                 )
                 
                 # Wait for commit to complete
@@ -321,7 +324,7 @@ Remember: Good commits tell the story of the project.
                 # Step 4: Todo agent updates task status
                 print("\n✏️  Step 4: Updating todo status...")
                 await client.query(
-                    f"Use todo-agent subagent to mark this task as completed [x]: {task_description}. Add a completion timestamp if appropriate."
+                    "Use todo-agent subagent to mark the just-implemented task as completed in todo.md. Use the appropriate completion format for this project."
                 )
                 
                 # Wait for todo update to complete
