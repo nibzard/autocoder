@@ -284,7 +284,7 @@ Remember: Good commits tell the story of the project.
             options = ClaudeCodeOptions(
                 cwd=str(self.project_dir),
                 allowed_tools=["Task", "Read", "Write", "Edit", "MultiEdit", "Bash", "Glob", "Grep"],
-                permission_mode="acceptEdits"
+                permission_mode="bypassPermissions"
             )
             
             # Use ClaudeSDKClient for conversation continuity
@@ -294,7 +294,7 @@ Remember: Good commits tell the story of the project.
                 print("  🔍 Analyzing todo.md...")
                 step1_start = time.time()
                 await client.query(
-                    "Use todo-agent subagent to review the status of todo.md, pick the next uncompleted task with highest priority, and mark it as [~] in progress."
+                    "Use todo-agent subagent to review the status of todo.md, pick the next uncompleted task with highest priority, and mark it as [~] in progress. DO NOT ask for confirmation - start working on the task immediately."
                 )
                 
                 print("  ⚙️  Processing response...")
@@ -323,7 +323,7 @@ Remember: Good commits tell the story of the project.
                 print("\n💻 Step 2: Implementing task...")
                 step2_start = time.time()
                 await client.query(
-                    "Implement the task that was just selected from todo.md. Write clean code, test it, and ensure it works correctly."
+                    "Implement the task that was just selected from todo.md. Write clean code, test it, and ensure it works correctly. Start working immediately - DO NOT ask for permission or confirmation."
                 )
                 
                 # Wait for implementation to complete
@@ -343,7 +343,7 @@ Remember: Good commits tell the story of the project.
                 print("\n📦 Step 3: Committing changes...")
                 step3_start = time.time()
                 await client.query(
-                    "Use git-agent subagent to commit all changes made for the implemented task. Use appropriate conventional commit format."
+                    "Use git-agent subagent to commit all changes made for the implemented task. Use appropriate conventional commit format. Execute immediately - DO NOT ask for permission."
                 )
                 
                 # Wait for commit to complete
@@ -363,7 +363,7 @@ Remember: Good commits tell the story of the project.
                 print("\n✏️  Step 4: Updating todo status...")
                 step4_start = time.time()
                 await client.query(
-                    "Use todo-agent subagent to mark the just-implemented task as completed in todo.md. Use the appropriate completion format for this project."
+                    "Use todo-agent subagent to mark the just-implemented task as completed in todo.md. Use the appropriate completion format for this project. Execute immediately - DO NOT ask for permission."
                 )
                 
                 # Wait for todo update to complete
