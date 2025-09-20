@@ -17,13 +17,13 @@ Autocoder creates a self-sustaining development loop where Claude continuously w
 Run autocoder directly from GitHub without installation:
 
 ```bash
-uvx https://github.com/nibzard/autocoder
+uvx git+https://github.com/nibzard/autocoder
 ```
 
 Or install it:
 
 ```bash
-uv tool install https://github.com/nibzard/autocoder
+uv tool install git+https://github.com/nibzard/autocoder
 autocoder
 ```
 
