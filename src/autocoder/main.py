@@ -17,6 +17,8 @@ except ImportError:
     print("   pip install claude-code-sdk")
     sys.exit(1)
 
+from .config import AutocoderConfig
+
 
 class Autocoder:
     """Autonomous coding system with project-specific agents."""
@@ -24,6 +26,7 @@ class Autocoder:
     def __init__(self, project_dir=None):
         self.project_dir = Path(project_dir) if project_dir else Path.cwd()
         self.agents_dir = self.project_dir / '.claude' / 'agents'
+        self.config = AutocoderConfig(self.project_dir)
         self.ensure_project_structure()
         
     def ensure_project_structure(self):
@@ -247,6 +250,16 @@ Remember: Good commits tell the story of the project.
         print(f"🔄 Starting Work Cycle")
         print(f"📁 Project: {self.project_dir}")
         print(f"🕐 Time: {datetime.now():%H:%M:%S}")
+        
+        # Display API configuration
+        api_info = self.config.get_api_info()
+        if api_info['custom']:
+            print(f"🌐 API: {api_info['provider']} ({api_info['endpoint']})")
+            if 'model' in api_info:
+                print(f"🤖 Model: {api_info['model']}")
+        else:
+            print(f"🌐 API: {api_info['provider']}")
+        
         print('='*60)
         
         try:
@@ -350,6 +363,16 @@ Remember: Good commits tell the story of the project.
         print(f"   Max cycles: {max_cycles}")
         print(f"   Project: {self.project_dir}")
         
+        # Show API configuration once at the start
+        api_info = self.config.get_api_info()
+        if api_info['custom']:
+            print(f"   Using: {api_info['provider']} via {api_info['endpoint']}")
+            if 'model' in api_info:
+                print(f"   Model: {api_info['model']}")
+        else:
+            print(f"   Using: {api_info['provider']} (default)")
+        print()
+        
         completed_cycles = 0
         
         for cycle in range(1, max_cycles + 1):
@@ -416,6 +439,12 @@ Examples:
     coder = Autocoder(project_dir=args.project)
     
     if args.init:
+        # Show configuration even during init
+        api_info = coder.config.get_api_info()
+        if api_info['custom']:
+            print(f"🌐 Detected API: {api_info['provider']} ({api_info['endpoint']})")
+            if 'model' in api_info:
+                print(f"🤖 Model: {api_info['model']}")
         print("✅ Project initialized with todo.md and agents")
     else:
         # Run autonomous cycles

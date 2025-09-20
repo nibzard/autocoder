@@ -77,8 +77,47 @@ Priority levels: **P0** (Critical) > **P1** (High) > **P2** (Medium) > **P3** (L
 ## Requirements
 
 - Python 3.8+
-- Claude Code Python SDK (automatically installed from pyproject.toml)
+- Claude Code Python SDK (automatically installed)
 - Git repository (initialized automatically if needed)
+
+## Configuration
+
+Autocoder automatically detects and uses custom API configurations from `.env` files. This allows you to use alternative Claude-compatible endpoints.
+
+### Using Zhipu GLM-4.5
+
+Create a `.env` file in your project directory:
+
+```bash
+# .env
+ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic
+ANTHROPIC_AUTH_TOKEN=your_zhipu_api_key_here
+ANTHROPIC_MODEL=glm-4.5
+API_TIMEOUT_MS=300000
+```
+
+Then run autocoder normally - it will automatically detect and use Zhipu:
+
+```bash
+uvx git+https://github.com/nibzard/autocoder
+# Output: 🌐 API: Zhipu (GLM-4.5) (https://api.z.ai/api/anthropic)
+```
+
+### Other Supported Endpoints
+
+- **AWS Bedrock**: Set `ANTHROPIC_BASE_URL` and AWS credentials
+- **Google Vertex AI**: Set `ANTHROPIC_BASE_URL` and Vertex project ID  
+- **Custom Endpoints**: Any Claude-compatible API
+
+See `.env.example` for complete configuration templates.
+
+### Default Behavior
+
+Without any `.env` file, autocoder uses Anthropic's official API:
+```bash
+uvx git+https://github.com/nibzard/autocoder
+# Output: 🌐 API: Anthropic Claude (default)
+```
 
 ## Example Workflow
 
