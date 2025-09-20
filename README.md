@@ -17,13 +17,13 @@ Autocoder creates a self-sustaining development loop where Claude continuously w
 Run autocoder directly from GitHub without installation:
 
 ```bash
-uvx --with claude-code-sdk git+https://github.com/nibzard/autocoder
+uvx git+https://github.com/nibzard/autocoder
 ```
 
 Or install it:
 
 ```bash
-uv tool install --with claude-code-sdk git+https://github.com/nibzard/autocoder
+uv tool install git+https://github.com/nibzard/autocoder
 autocoder
 ```
 
@@ -77,7 +77,7 @@ Priority levels: **P0** (Critical) > **P1** (High) > **P2** (Medium) > **P3** (L
 ## Requirements
 
 - Python 3.8+
-- Claude Code Python SDK (automatically installed with `--with claude-code-sdk`)
+- Claude Code Python SDK (automatically installed from pyproject.toml)
 - Git repository (initialized automatically if needed)
 
 ## Example Workflow
@@ -89,7 +89,3 @@ Priority levels: **P0** (Critical) > **P1** (High) > **P2** (Medium) > **P3** (L
 5. Continue until all tasks are complete
 
 Perfect for autonomous development sessions where you want Claude to systematically work through a project roadmap.
-
-## Installation Note
-
-The `--with claude-code-sdk` flag is required because uvx doesn't automatically install dependencies from pyproject.toml for security reasons. This ensures the Claude Code SDK is available in the execution environment.
