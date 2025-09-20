@@ -7,6 +7,8 @@ import asyncio
 import sys
 import os
 import shutil
+import logging
+import time
 from pathlib import Path
 from datetime import datetime
 
@@ -27,7 +29,22 @@ class Autocoder:
         self.project_dir = Path(project_dir) if project_dir else Path.cwd()
         self.agents_dir = self.project_dir / '.claude' / 'agents'
         self.config = AutocoderConfig(self.project_dir)
+        self.setup_logging()
         self.ensure_project_structure()
+        
+    def setup_logging(self):
+        """Setup logging to ~/.autocoder/logs/"""
+        home_dir = Path.home()
+        log_dir = home_dir / '.autocoder' / 'logs'
+        log_dir.mkdir(parents=True, exist_ok=True)
+        
+        log_file = log_dir / f"autocoder-{datetime.now().strftime('%Y-%m-%d')}.log"
+        logging.basicConfig(
+            filename=log_file,
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            filemode='a'
+        )
         
     def ensure_project_structure(self):
         """Create project structure and agents if they don't exist."""
@@ -274,36 +291,37 @@ Remember: Good commits tell the story of the project.
             async with ClaudeSDKClient(options=options) as client:
                 # Step 1: Todo agent picks next task
                 print("\n📋 Step 1: Checking todo list...")
+                print("  🔍 Analyzing todo.md...")
+                step1_start = time.time()
                 await client.query(
                     "Use todo-agent subagent to review the status of todo.md, pick the next uncompleted task with highest priority, and mark it as [~] in progress."
                 )
                 
-                # Process response to see if a task was selected
+                print("  ⚙️  Processing response...")
+                # Check result using SDK's built-in status
                 task_selected = False
                 async for message in client.receive_response():
                     if isinstance(message, AssistantMessage):
+                        # Log full response for user to check later
                         for block in message.content:
                             if isinstance(block, TextBlock):
-                                text = block.text
-                                # Look for the agent's clear communication about task selection
-                                if "SELECTED TASK:" in text or "selected task" in text.lower():
-                                    task_selected = True
-                                    # Extract just the task description for display
-                                    lines = text.split('\n')
-                                    for line in lines:
-                                        if "SELECTED TASK:" in line:
-                                            task_desc = line.replace("SELECTED TASK:", "").strip()
-                                            print(f"  ✅ {task_desc[:100]}...")
-                                            break
-                                elif "no tasks" in text.lower() or "completed" in text.lower():
-                                    print(f"  ℹ️  {text.strip()}")
+                                logging.info(f"Step 1 Response: {block.text}")
+                    elif isinstance(message, ResultMessage):
+                        task_selected = not message.is_error
+                        step1_time = time.time() - step1_start
+                        if task_selected:
+                            print(f"  ✅ Task selected ({step1_time:.1f}s)")
+                        else:
+                            print(f"  ℹ️  No tasks found or all completed! ({step1_time:.1f}s)")
+                        logging.info(f"Step 1 result: success={task_selected}, duration={step1_time:.1f}s")
+                        break
                 
                 if not task_selected:
-                    print("  ℹ️  No tasks found or all completed!")
                     return False
                 
                 # Step 2: Implement the task
                 print("\n💻 Step 2: Implementing task...")
+                step2_start = time.time()
                 await client.query(
                     "Implement the task that was just selected from todo.md. Write clean code, test it, and ensure it works correctly."
                 )
@@ -311,15 +329,19 @@ Remember: Good commits tell the story of the project.
                 # Wait for implementation to complete
                 async for message in client.receive_response():
                     if isinstance(message, ResultMessage):
+                        step2_time = time.time() - step2_start
                         if message.is_error:
-                            print(f"  ❌ Implementation failed: {message.result}")
+                            print(f"  ❌ Implementation failed ({step2_time:.1f}s)")
+                            logging.error(f"Step 2 failed: {message.result}")
                             return False
+                        else:
+                            print(f"  ✅ Implementation complete ({step2_time:.1f}s)")
+                            logging.info(f"Step 2 success: duration={step2_time:.1f}s")
                         break
-                
-                print(f"  ✅ Implementation complete")
                 
                 # Step 3: Git agent commits changes
                 print("\n📦 Step 3: Committing changes...")
+                step3_start = time.time()
                 await client.query(
                     "Use git-agent subagent to commit all changes made for the implemented task. Use appropriate conventional commit format."
                 )
@@ -327,15 +349,19 @@ Remember: Good commits tell the story of the project.
                 # Wait for commit to complete
                 async for message in client.receive_response():
                     if isinstance(message, ResultMessage):
+                        step3_time = time.time() - step3_start
                         if message.is_error:
-                            print(f"  ❌ Commit failed: {message.result}")
+                            print(f"  ❌ Commit failed ({step3_time:.1f}s)")
+                            logging.error(f"Step 3 failed: {message.result}")
                             return False
+                        else:
+                            print(f"  ✅ Changes committed ({step3_time:.1f}s)")
+                            logging.info(f"Step 3 success: duration={step3_time:.1f}s")
                         break
-                
-                print(f"  ✅ Changes committed")
                 
                 # Step 4: Todo agent updates task status
                 print("\n✏️  Step 4: Updating todo status...")
+                step4_start = time.time()
                 await client.query(
                     "Use todo-agent subagent to mark the just-implemented task as completed in todo.md. Use the appropriate completion format for this project."
                 )
@@ -343,12 +369,15 @@ Remember: Good commits tell the story of the project.
                 # Wait for todo update to complete
                 async for message in client.receive_response():
                     if isinstance(message, ResultMessage):
+                        step4_time = time.time() - step4_start
                         if message.is_error:
-                            print(f"  ❌ Todo update failed: {message.result}")
+                            print(f"  ❌ Todo update failed ({step4_time:.1f}s)")
+                            logging.error(f"Step 4 failed: {message.result}")
                             return False
+                        else:
+                            print(f"  ✅ Todo updated ({step4_time:.1f}s)")
+                            logging.info(f"Step 4 success: duration={step4_time:.1f}s")
                         break
-                
-                print(f"  ✅ Todo updated - task marked complete")
                 
                 print(f"\n🎉 Work cycle completed successfully!")
                 return True
@@ -362,6 +391,10 @@ Remember: Good commits tell the story of the project.
         print(f"\n🚀 Starting Autonomous Coding Session")
         print(f"   Max cycles: {max_cycles}")
         print(f"   Project: {self.project_dir}")
+        
+        # Show log file location
+        log_file = Path.home() / '.autocoder' / 'logs' / f"autocoder-{datetime.now().strftime('%Y-%m-%d')}.log"
+        print(f"   Logs: {log_file}")
         
         # Show API configuration once at the start
         api_info = self.config.get_api_info()
